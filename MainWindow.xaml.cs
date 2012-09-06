@@ -23,7 +23,9 @@ namespace thousandWords
     /// </summary>
     public partial class MainWindow : Window
     {
-        MyThes thesaurus = new MyThes("C:\\th_en_US_new.dat");
+        bool textBox1_selected = false;
+
+        MyThes thesaurus = new MyThes("C:\\Users\\Mitchell\\Desktop\\mythes-1.2.3\\th_en_US_new.dat");
         OpenFileDialog fileDialog = new OpenFileDialog();
         SaveFileDialog saveDialog = new SaveFileDialog();
         string imagePath;
@@ -80,6 +82,8 @@ namespace thousandWords
 
         private void button2_Click(object sender, RoutedEventArgs e)
         {
+            //progressBox.UpdateProgress(0, "Finding synonyms...");
+
             //
             //Find the synonyms of the words given
             //
@@ -88,6 +92,8 @@ namespace thousandWords
             string[] wordsArray = wordString.Split(',');
             words = wordsArray.ToList<string>();
             words = GetSynonyms(words);
+
+            //progressBox.UpdateProgress(25, "Calculating size...");
 
             string bigWords = "";
             int totalLetters = 0;
@@ -102,13 +108,11 @@ namespace thousandWords
             // In other words... 1,000 words worth of letters is not very many pixels
             totalLetters = bigWords.Length;
 
-            //Ratio actualAR = GetAspectRatio(1440 * 900, 16f / 10f);
             Ratio actualAR = GetAspectRatio(totalLetters, targetAR.Value);
 
+            // Freakishly slow
             BitmapSource bitImage = ResizeBitmap((BitmapImage)image1.Source, actualAR.X, actualAR.Y);
 
-
-            #region Read Pixel Data
 
             Color[,] colors = new Color[bitImage.PixelWidth, bitImage.PixelHeight];
 
@@ -120,18 +124,20 @@ namespace thousandWords
                 }
             }
 
-            #endregion
-
-            #region Build HTML page
-
             string pageBuilder = "<html>\n<body style=\"font-family: monospace; background-color: #000000\">\n";
             char[] bigChars = bigWords.ToCharArray();
+            int charPos = 0;
+
 
             for (int pixely = 0; pixely < bitImage.PixelHeight; pixely++)
             {
                 for (int pixelx = 0; pixelx < bitImage.PixelWidth; pixelx++)
                 {
-                    pageBuilder = pageBuilder + "<font color=\"" + colors[pixelx, pixely].ToString() + "\">" + bigChars[pixely * bitImage.PixelWidth + pixelx] + "</font>";
+                    pageBuilder = pageBuilder + "<font color=\"" + colors[pixelx, pixely].ToString() + "\">" + bigChars[charPos] + "</font>";
+                    
+                    charPos++;
+                    if (charPos == bigWords.Length)
+                        charPos = 0;
                 }
 
                 pageBuilder = pageBuilder + "<br/>\n";
@@ -146,24 +152,7 @@ namespace thousandWords
                 File.WriteAllText(saveDialog.FileName, pageBuilder);
             }
 
-            #endregion
 
-        }
-
-        private void button1_Click(object sender, RoutedEventArgs e)
-        {
-            bool? IsSelected = fileDialog.ShowDialog();
-
-            if (IsSelected == true)
-            {
-                imagePath = fileDialog.FileName;
-
-                BitmapImage bitImage = new BitmapImage();
-                bitImage.BeginInit();
-                bitImage.UriSource = new Uri(fileDialog.FileName, UriKind.Absolute);
-                bitImage.EndInit();
-                image1.Source = bitImage;
-            }
         }
 
         //
@@ -258,6 +247,33 @@ namespace thousandWords
             }
 
             return Words;
+        }
+
+        private void button1_Click(object sender, RoutedEventArgs e)
+        {
+            bool? IsSelected = fileDialog.ShowDialog();
+
+            if (IsSelected == true)
+            {
+                imagePath = fileDialog.FileName;
+
+                BitmapImage bitImage = new BitmapImage();
+                bitImage.BeginInit();
+                bitImage.UriSource = new Uri(fileDialog.FileName, UriKind.Absolute);
+                bitImage.EndInit();
+                image1.Source = bitImage;
+            }
+        }
+
+
+
+        private void textBox1_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (!textBox1_selected)
+            {
+                textBox1.Foreground = Brushes.Black;
+                textBox1.Text = "";
+            }
         }
     }
 }
