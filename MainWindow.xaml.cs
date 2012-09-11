@@ -25,9 +25,8 @@ namespace thousandWords
     {
         bool textBox1_selected = false;
 
-        MyThes thesaurus = new MyThes("C:\\Users\\Mitchell\\Desktop\\mythes-1.2.3\\th_en_US_new.dat");
-        OpenFileDialog fileDialog = new OpenFileDialog();
-        SaveFileDialog saveDialog = new SaveFileDialog();
+        MyThes thesaurus;
+
         string imagePath;
 
         public struct Ratio
@@ -77,12 +76,55 @@ namespace thousandWords
         {
             InitializeComponent();
 
-            fileDialog.Multiselect = false;
+            changeThesaurus();
+        }
+
+        void changeThesaurus()
+        {
+            changeThesaurus(false);
+        }
+
+        void changeThesaurus(bool forceChange)
+        {
+            if (!File.Exists(Properties.Settings.Default.mythes) || forceChange)
+            {
+                OpenFileDialog fileDialog = new OpenFileDialog();
+                fileDialog.Title = "Please select the file to use as a thesaurus";
+                fileDialog.Filter = "MyThes thesaurus file (*.dat)|*.dat";
+                fileDialog.FileName = Properties.Settings.Default.mythes;
+                fileDialog.ShowDialog();
+                Properties.Settings.Default.mythes = fileDialog.FileName;
+                Properties.Settings.Default.Save();
+            }
+            try
+            {
+                thesaurus = new MyThes(Properties.Settings.Default.mythes);
+            }
+            catch
+            {
+                MessageBox.Show("Thesaurus file is invalid!", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void button2_Click(object sender, RoutedEventArgs e)
         {
-            //progressBox.UpdateProgress(0, "Finding synonyms...");
+            if (image1.Source == null)
+            {
+                MessageBox.Show("Please select an image.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (textBox1.Text == String.Empty || textBox1_selected == false)
+            {
+                MessageBox.Show("Please enter at least one word.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (thesaurus == null)
+            {
+                MessageBox.Show("Please please select a valid thesaurus file.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
             //
             //Find the synonyms of the words given
@@ -93,19 +135,12 @@ namespace thousandWords
             words = wordsArray.ToList<string>();
             words = GetSynonyms(words);
 
-            //progressBox.UpdateProgress(25, "Calculating size...");
-
-            string bigWords = "";
-            int totalLetters = 0;
+            string bigWords = String.Join("", words);
+            int totalLetters = bigWords.Length;
             Ratio targetAR = new Ratio(image1.Source.Width, image1.Source.Height);
 
-            foreach (string word in words)
-            {
-                bigWords = bigWords + word;
-            }
-
-            // Arbitrary artificial enlargement
-            // In other words... 1,000 words worth of letters is not very many pixels
+            // Theoretically you should be able to multiply this number by anything you want
+            // to get a higher resolution picture... but in practice this is a very bad idea
             totalLetters = bigWords.Length;
 
             Ratio actualAR = GetAspectRatio(totalLetters, targetAR.Value);
@@ -145,6 +180,9 @@ namespace thousandWords
 
             pageBuilder = pageBuilder + "</body>\n</html>";
 
+            SaveFileDialog saveDialog = new SaveFileDialog();
+            saveDialog.Filter = "HTML Files (*.html, *.htm)|*.html;*.htm";
+
             bool? isSelected = saveDialog.ShowDialog(this);
 
             if (isSelected == true)
@@ -160,12 +198,12 @@ namespace thousandWords
         //
         public Color GetPixel(BitmapSource bitmap, int x, int y)
         {
-            Debug.Assert(bitmap != null);
-            Debug.Assert(x >= 0);
-            Debug.Assert(y >= 0);
-            Debug.Assert(x < bitmap.PixelWidth);
-            Debug.Assert(y < bitmap.PixelHeight);
-            Debug.Assert(bitmap.Format.BitsPerPixel >= 24);
+            //Debug.Assert(bitmap != null);
+            //Debug.Assert(x >= 0);
+            //Debug.Assert(y >= 0);
+            //Debug.Assert(x < bitmap.PixelWidth);
+            //Debug.Assert(y < bitmap.PixelHeight);
+            //Debug.Assert(bitmap.Format.BitsPerPixel >= 24);
 
             CroppedBitmap cb = new CroppedBitmap(bitmap, new Int32Rect(x, y, 1, 1));
             byte[] pixel = new byte[bitmap.Format.BitsPerPixel / 8];
@@ -175,7 +213,9 @@ namespace thousandWords
 
         //
         // An arguably crude way to get a possible aspect ratio from 
-        // a number of units (pixels) and a target AR
+        // a number of units (pixels) and a target AR.
+        // This (wrongly) assumes that pixels are square, or at least
+        // the same aspect ratio as monospaced characters.
         //
         public Ratio GetAspectRatio(int numberOfUnits, float targetAspectRatio)
         {
@@ -251,6 +291,12 @@ namespace thousandWords
 
         private void button1_Click(object sender, RoutedEventArgs e)
         {
+            OpenFileDialog fileDialog = new OpenFileDialog();
+
+            fileDialog.Multiselect = false;
+            fileDialog.Title = "Please select an image to use";
+            fileDialog.Filter = "Image Files (*.bmp;*.jpg;*.gif;*.png)|*.bmp;*.jpg;*.gif;*.png|All files (*.*)|*.*";
+
             bool? IsSelected = fileDialog.ShowDialog();
 
             if (IsSelected == true)
@@ -265,15 +311,19 @@ namespace thousandWords
             }
         }
 
-
-
         private void textBox1_GotFocus(object sender, RoutedEventArgs e)
         {
             if (!textBox1_selected)
             {
                 textBox1.Foreground = Brushes.Black;
                 textBox1.Text = "";
+                textBox1_selected = true;
             }
+        }
+
+        private void button3_Click(object sender, RoutedEventArgs e)
+        {
+            changeThesaurus(true);
         }
     }
 }
